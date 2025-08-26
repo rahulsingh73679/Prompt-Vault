@@ -1,0 +1,16 @@
+[
+  {
+    "id": "email/welcome",
+    "title": "Welcome Email",
+    "category": "Email",
+    "tags": ["formal","onboarding"],
+    "prompt": "Write a concise, friendly welcome email for a new user named {{name}}..."
+  },
+  {
+    "id": "coding/debug",
+    "title": "Bug Repro Template",
+    "category": "Dev",
+    "tags": ["debug","template"],
+    "prompt": "Context:\\n- Expected:\\n- Actual:\\n- Steps:\\n- Logs:\\n- Hypothesis:"
+  }
+]
