@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prompt Vault</title>
+  <style>
+    :root{
+      --bg:#0f1220; --panel:#171a2b; --accent:#7c5cff; --muted:#aab0d6; --text:#e9ecff;
+      --ok:#45c486; --warn:#ffb020; --danger:#ff5c7a;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0e1a,#0f1220 30% 70%,#0b0e1a);
+         color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;}
+    .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+    header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:40px;height:40px;border-radius:12px;background:conic-gradient(from 210deg, var(--accent),#00b3ff,#19dd8d,#ffd76b,var(--accent));
+          box-shadow:0 0 24px rgba(124,92,255,.45);}
+    h1{font-size:22px;margin:0}
+    .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    input[type="text"], select{background:var(--panel);border:1px solid #2b2f4d;color:var(--text);
+      padding:10px 12px;border-radius:12px;outline:none;min-width:220px}
+    input::placeholder{color:#8b90bb}
+    .btn{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:12px;cursor:pointer;
+         font-weight:600}
+    .btn.secondary{background:#2b2f4d;color:#e2e6ff}
+    .btn.ghost{background:transparent;border:1px solid #2b2f4d;color:#dfe3ff}
+    .btn.small{padding:6px 10px;border-radius:10px;font-size:12px}
+    .panel{background:rgba(23,26,43,.7);border:1px solid #2b2f4d;border-radius:16px;padding:14px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .left{grid-column:span 8}
+    .right{grid-column:span 4}
+    @media (max-width:980px){.left{grid-column:span 12}.right{grid-column:span 12}}
+
+    .card{background:var(--panel);border:1px solid #2b2f4d;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px}
+    .title{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+    .title h3{margin:0;font-size:16px}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:12px}
+    .tags{display:flex;flex-wrap:wrap;gap:6px}
+    .tag{background:#222647;border:1px solid #323865;color:#cbd2ff;padding:4px 8px;border-radius:999px;font-size:12px}
+    textarea{width:100%;min-height:140px;resize:vertical;background:#0e1121;color:var(--text);
+      border:1px solid #2b2f4d;border-radius:12px;padding:12px}
+    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .muted{color:#aab0d6;font-size:12px}
+    .pill{padding:6px 10px;border-radius:999px;background:#212545;border:1px solid #2b2f4d;color:#dfe3ff;font-size:12px}
+    .hl{color:#ffe083}
+    .status{font-size:12px}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:#1b1f36;border:1px solid #2b2f4d;padding:2px 6px;border-radius:6px}
+    .footer{margin-top:16px;color:#9ea5d6;font-size:12px}
+    .link{color:#a2c6ff}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <h1>Prompt Vault <span class="muted">· GitHub-linked</span></h1>
+      </div>
+      <div class="bar">
+        <input id="search" type="text" placeholder="Search title, tags, text… ( / to focus )" />
+        <select id="category"></select>
+        <button class="btn secondary" id="addLocal">+ New (local)</button>
+        <button class="btn ghost" id="importJson">Import</button>
+        <button class="btn ghost" id="exportJson">Export</button>
+        <button class="btn" id="refresh">↻ Refresh</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="left">
+        <div id="list" class="grid" style="grid-template-columns:repeat(12,1fr);gap:12px"></div>
+      </section>
+      <aside class="right">
+        <div class="card">
+          <h3 style="margin:0 0 6px 0">Vault Source</h3>
+          <div class="row">
+            <input id="dataUrl" type="text" placeholder="Raw GitHub JSON URL or relative path e.g. prompts.json" style="flex:1" />
+            <button class="btn small" id="setUrl">Load</button>
+          </div>
+          <div class="muted">Tip: Host <span class="kbd">prompts.json</span> in your repo and paste its <span class="kbd">raw.githubusercontent.com</span> link here. This app will read it on any device.</div>
+          <div class="muted">Share a specific prompt via link: thispage.html?<span class="hl">id=&lt;prompt-id&gt;</span></div>
+          <hr style="border-color:#2b2f4d;opacity:.4">
+          <div class="row" style="justify-content:space-between">
+            <span class="muted">Favorites (<span id="favCount">0</span>)</span>
+            <button class="btn small secondary" id="showFav">Show only favorites</button>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <span class="muted">Propose edits on GitHub</span>
+            <button class="btn small ghost" id="newIssue">New Issue</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 style="margin:0 0 6px 0">Add / Edit (local)</h3>
+          <div class="row"><input id="fId" type="text" placeholder="id (unique, e.g. email/welcome)" style="flex:1"></div>
+          <div class="row"><input id="fTitle" type="text" placeholder="title" style="flex:1"></div>
+          <div class="row"><input id="fCategory" type="text" placeholder="category" style="flex:1"></div>
+          <div class="row"><input id="fTags" type="text" placeholder="tags (comma separated)" style="flex:1"></div>
+          <textarea id="fBody" placeholder="Your reusable prompt…"></textarea>
+          <div class="row" style="justify-content:space-between">
+            <button class="btn small" id="saveLocal">Save to Local Vault</button>
+            <span class="muted">Local items sync via <span class="hl">Export</span> → commit JSON to GitHub</span>
+          </div>
+        </div>
+
+        <div class="footer">
+          Schema: <span class="kbd">[{ id, title, category, tags:[…], prompt }]</span> · Data cached locally for offline use.
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <template id="card-tpl">
+    <div class="card" data-id="">
+      <div class="title">
+        <h3 class="c-title"></h3>
+        <div class="row">
+          <button class="btn small ghost copy">Copy</button>
+          <button class="btn small ghost insert">↘ Insert</button>
+          <button class="btn small secondary fav">★</button>
+        </div>
+      </div>
+      <div class="meta">
+        <span class="pill c-cat"></span>
+        <div class="tags c-tags"></div>
+        <span class="muted">·</span>
+        <span class="muted c-id"></span>
+      </div>
+      <textarea class="c-text"></textarea>
+      <div class="row" style="justify-content:space-between">
+        <span class="status"></span>
+        <a class="link c-share" target="_blank" rel="noopener">Share</a>
+      </div>
+    </div>
+  </template>
+
+  <script>
+  // ----------------------- Config -----------------------
+  const DEFAULT_URL = 'prompts.json'; // Put a prompts.json beside this file, or set via the input below
+  // You can also pass ?data=<raw-github-raw-json-url> to load data from any repo
+
+  // --------------------- Utilities ----------------------
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const store = {
+    get(k, d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch{ return d } },
+    set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+  };
+  const by = (k) => (a,b)=> (a[k]||'').localeCompare(b[k]||'');
+  const qs = new URLSearchParams(location.search);
+
+  function toast(el, msg, kind='ok'){
+    el.textContent = msg; el.style.color = kind==='ok'? 'var(--ok)': kind==='warn'? 'var(--warn)': 'var(--danger)';
+    setTimeout(()=>{ el.textContent=''; }, 1800);
+  }
+
+  function copyToClipboard(text){
+    navigator.clipboard.writeText(text).catch(()=>{
+      // fallback
+      const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    });
+  }
+
+  // -------------------- App State -----------------------
+  let DATA_URL = qs.get('data') || store.get('DATA_URL', DEFAULT_URL);
+  let ALL = [];
+  let LOCAL = store.get('LOCAL_PROMPTS', []);
+  let FAV = new Set(store.get('FAV_IDS', []));
+  let SHOW_FAV_ONLY = false;
+
+  // -------------------- DOM Elements --------------------
+  const listEl = $('#list');
+  const searchEl = $('#search');
+  const catEl = $('#category');
+  const dataUrlEl = $('#dataUrl');
+  const favCountEl = $('#favCount');
+
+  // -------------------- Fetch + Render ------------------
+  async function fetchRemote(url){
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Failed to fetch: '+res.status);
+    return res.json();
+  }
+
+  function normalize(arr){
+    return (arr||[]).map(x=>({
+      id: String(x.id||'').trim(),
+      title: x.title||x.name||'(untitled)',
+      category: x.category||'General',
+      tags: Array.isArray(x.tags)? x.tags : (x.tags? String(x.tags).split(',').map(s=>s.trim()).filter(Boolean): []),
+      prompt: x.prompt||x.text||''
+    })).filter(x=>x.id && x.prompt);
+  }
+
+  async function load(){
+    $('#refresh').disabled = true;
+    const status = store.get('CACHE', { url: DATA_URL, data: [] });
+    dataUrlEl.value = DATA_URL;
+    try{
+      const remote = await fetchRemote(DATA_URL);
+      ALL = normalize(remote).concat(normalize(LOCAL));
+      store.set('CACHE', { url: DATA_URL, data: ALL });
+    }catch(err){
+      // fallback to cache + local
+      const cached = status.data||[];
+      ALL = normalize(cached).concat(normalize(LOCAL));
+    }
+    ALL.sort(by('title'));
+    render();
+    $('#refresh').disabled = false;
+    // If id=... present, open/focus it
+    const targetId = qs.get('id');
+    if(targetId){
+      const card = listEl.querySelector(`[data-id="${CSS.escape(targetId)}"] textarea`);
+      if(card){ card.scrollIntoView({behavior:'smooth', block:'center'}); card.focus(); }
+    }
+  }
+
+  function setCategories(){
+    const cats = Array.from(new Set(ALL.map(x=>x.category))).sort();
+    catEl.innerHTML = '<option value="">All categories</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+  }
+
+  function render(){
+    setCategories();
+    favCountEl.textContent = FAV.size;
+    const q = searchEl.value.toLowerCase();
+    const c = catEl.value;
+    const items = ALL.filter(x=>{
+      const okFav = SHOW_FAV_ONLY ? FAV.has(x.id) : true;
+      const okCat = !c || x.category===c;
+      const okQ = !q || (x.title+" "+x.category+" "+x.tags.join(' ')+" "+x.prompt).toLowerCase().includes(q);
+      return okFav && okCat && okQ;
+    });
+
+    listEl.innerHTML = '';
+    if(!items.length){
+      const empty = document.createElement('div');
+      empty.className = 'panel';
+      empty.textContent = 'No prompts found. Try a different search, category, or add a local item.';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    // responsive columns
+    const cols = (innerWidth>1200)?3:(innerWidth>800)?2:1;
+    listEl.style.gridTemplateColumns = `repeat(${cols*4},1fr)`; // 12 columns grid
+
+    const tpl = $('#card-tpl');
+    items.forEach(x=>{
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      node.dataset.id = x.id;
+      node.querySelector('.c-title').textContent = x.title;
+      node.querySelector('.c-cat').textContent = x.category;
+      node.querySelector('.c-id').textContent = x.id;
+      const tagsEl = node.querySelector('.c-tags');
+      x.tags.forEach(t=>{ const s=document.createElement('span'); s.className='tag'; s.textContent=t; tagsEl.appendChild(s); });
+      const ta = node.querySelector('.c-text'); ta.value = x.prompt;
+      node.querySelector('.c-share').href = location.pathname + `?id=${encodeURIComponent(x.id)}&data=${encodeURIComponent(DATA_URL)}`;
+
+      const favBtn = node.querySelector('.fav');
+      favBtn.textContent = FAV.has(x.id)? '★ Fav' : '☆ Fav';
+      favBtn.onclick = ()=>{ if(FAV.has(x.id)) FAV.delete(x.id); else FAV.add(x.id); store.set('FAV_IDS', [...FAV]); render(); };
+
+      node.querySelector('.copy').onclick = ()=>{ copyToClipboard(ta.value); toast(node.querySelector('.status'),'Copied'); };
+      node.querySelector('.insert').onclick = ()=>{
+        // Insert to cursor in a focused input/textarea on the page
+        const active = document.activeElement;
+        if(active && (active.tagName==='TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'))){
+          const {selectionStart:s, selectionEnd:e, value} = active; const ins = ta.value;
+          active.value = value.slice(0,s)+ins+value.slice(e);
+          active.dispatchEvent(new Event('input'));
+          toast(node.querySelector('.status'),'Inserted');
+        }else{
+          copyToClipboard(ta.value); toast(node.querySelector('.status'),'Copied (no target)');
+        }
+      };
+
+      listEl.appendChild(node);
+    });
+  }
+
+  // -------------------- Events --------------------------
+  searchEl.addEventListener('input', render);
+  catEl.addEventListener('change', render);
+  $('#showFav').onclick = ()=>{ SHOW_FAV_ONLY = !SHOW_FAV_ONLY; $('#showFav').textContent = SHOW_FAV_ONLY? 'Show all' : 'Show only favorites'; render(); };
+  $('#refresh').onclick = load;
+  $('#setUrl').onclick = ()=>{ DATA_URL = dataUrlEl.value.trim() || DEFAULT_URL; store.set('DATA_URL', DATA_URL); const u = new URL(location); u.searchParams.set('data', DATA_URL); history.replaceState({},'',u); load(); };
+
+  // keyboard shortcut to focus search
+  window.addEventListener('keydown', (e)=>{ if(e.key==='/' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); searchEl.focus(); } });
+
+  // Import / Export
+  $('#exportJson').onclick = ()=>{
+    const blob = new Blob([ JSON.stringify(normalize(ALL), null, 2) ], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'prompts.json'; a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  $('#importJson').onclick = ()=>{
+    const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json';
+    inp.onchange = async ()=>{
+      const file = inp.files[0]; if(!file) return; const text = await file.text();
+      try{ const arr = JSON.parse(text); LOCAL = normalize(arr); store.set('LOCAL_PROMPTS', LOCAL); toast($('.footer'),'Imported (local)'); load(); }
+      catch{ alert('Invalid JSON'); }
+    };
+    inp.click();
+  };
+
+  // Local add/edit
+  $('#addLocal').onclick = ()=>{ $('#fId').value=''; $('#fTitle').value=''; $('#fCategory').value='General'; $('#fTags').value=''; $('#fBody').value=''; $('#fId').focus(); };
+  $('#saveLocal').onclick = ()=>{
+    const item = {
+      id: $('#fId').value.trim(),
+      title: $('#fTitle').value.trim() || '(untitled)',
+      category: $('#fCategory').value.trim() || 'General',
+      tags: $('#fTags').value.split(',').map(s=>s.trim()).filter(Boolean),
+      prompt: $('#fBody').value
+    };
+    if(!item.id || !item.prompt){ alert('Need id and prompt'); return; }
+    const idx = LOCAL.findIndex(p=>p.id===item.id);
+    if(idx>=0) LOCAL[idx]=item; else LOCAL.push(item);
+    store.set('LOCAL_PROMPTS', LOCAL);
+    toast($('.footer'),'Saved locally. Use Export → commit JSON to GitHub.');
+    load();
+  };
+
+  // Pre-filled GitHub Issue for proposals
+  $('#newIssue').onclick = ()=>{
+    const url = new URL('https://github.com/OWNER/REPO/issues/new');
+    url.searchParams.set('title','Prompt vault update request');
+    url.searchParams.set('body', `Please update prompts.json.\n\n- Data URL in use: ${DATA_URL}\n- Suggested changes: (paste JSON or description)\n\n`);
+    window.open(url.toString(),'_blank');
+  };
+
+  // Initialize
+  dataUrlEl.value = DATA_URL;
+  load();
+  </script>
+</body>
+</html>
